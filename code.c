@@ -16,7 +16,7 @@ typedef struct {
     char *args[3];
 } opcode_format;
 
-int check_prefix(char *base, opcode_gathered_info *op_info, int mode);
+int check_prefix(unsigned char *base, opcode_gathered_info *op_info, int mode);
 
 int toupper_string(char *str, int str_len)
 {
@@ -67,7 +67,7 @@ int displacement_calc(opcode_mod_rm *mod_rm, int addr_size) // RETURN WIDTH OF D
     }
 }
 
-int fill_mod_rm(char *mod_rm, opcode_gathered_info *op_info, int addr_size) // FILL op_info WITH MOD_RM INFORMATION
+int fill_mod_rm(unsigned char *mod_rm, opcode_gathered_info *op_info, int addr_size) // FILL op_info WITH MOD_RM INFORMATION
 {
     int opcode_len = 1; // INITIAL VALUE FOR MOD_RM
     op_info->has_sib = 0;
@@ -118,7 +118,7 @@ int op_size_calc(int arg, int op_size) // RETURN byte, word, dword, qword, fword
     return DWORD;
 }
 
-int segment_calc(char *base, int prefix_count) // RETURN d FOR PRESENT SEGMENT PREFIX
+int segment_calc(unsigned char *base, int prefix_count) // RETURN d FOR PRESENT SEGMENT PREFIX
 {
     char seg_prefix[] = "\x2e\x36\x3e\x26\x64\x65";
     for (int i = 0;i < prefix_count;i++)
@@ -167,7 +167,7 @@ int strncat_args(char *buf, int buf_size, int data, int data_len, int mode) // P
     }
     return 1;
 }
-int strncat_sib(char *buf, char *sib_p, opcode_gathered_info *op_info, int buf_size) // PRINTS INFORMATION RELATED TO SIB. Eg DISPLACEMENT IN SIB
+int strncat_sib(char *buf, unsigned char *sib_p, opcode_gathered_info *op_info, int buf_size) // PRINTS INFORMATION RELATED TO SIB. Eg DISPLACEMENT IN SIB
 {
     opcode_mod_rm *mod_rm = &op_info->mod_rm;
     opcode_mod_rm *sib = &op_info->sib;
@@ -211,18 +211,18 @@ int strncat_sib(char *buf, char *sib_p, opcode_gathered_info *op_info, int buf_s
     return 1;
 }
 
-int check_prefix_op(char *base, int prefix_count, char op) // SEARCH PRESENCE OF PREFIX GIVEN BY op
+int check_prefix_op(unsigned char *base, int prefix_count, char op) // SEARCH PRESENCE OF PREFIX GIVEN BY op
 {
     for (int i = 0;i < prefix_count;i++)
         if (base[i] == op) return 1;
     return 0;
 }
 
-int check_prefix_gp(char *base)
+int check_prefix_gp(unsigned char *base)
 {
     opcode_gathered_info op_info;
     int ret = 0, i = 0, prefix = 0;
-    char prefix_char = *base++;
+    unsigned char prefix_char = *base++;
     while(1)
     {
         if (base[i] == prefix_char)
@@ -234,7 +234,7 @@ int check_prefix_gp(char *base)
     if (prefix_char == '\xf3')
     {
         prefix = REP;
-        switch(base[i])
+        switch((char)base[i])
         {
             case '\xae':
                 prefix = REPE;
@@ -276,7 +276,7 @@ int check_prefix_gp(char *base)
     else if (prefix_char == '\xf2')
     {
         prefix = REPNE;
-        switch(base[i])
+        switch((char)base[i])
         {
             case '\xa6':
                 break;
@@ -293,12 +293,12 @@ int check_prefix_gp(char *base)
     return prefix;
 }
 
-int check_prefix(char *base, opcode_gathered_info *op_info, int mode) // RETURN INV IF PREFIX_G1, RETURN NO_PREFIX FOR NO PREFIX
+int check_prefix(unsigned char *base, opcode_gathered_info *op_info, int mode) // RETURN INV IF PREFIX_G1, RETURN NO_PREFIX FOR NO PREFIX
 {
     int prefix_table = 0, prefix = 0;
     if (mode != CHECK_ONLY) 
         op_info->prefix = 0;
-    switch (base[0])
+    switch ((char)base[0])
     {
         case '\xf0':
             prefix_table = PREFIX_G1;
@@ -370,35 +370,41 @@ int check_prefix(char *base, opcode_gathered_info *op_info, int mode) // RETURN 
         op_info->prefix = prefix;
     }
     if ((prefix_table != NO_PREFIX) && (mode != NO_OP_LEN)) // NO_OP_LEN -> DON'T CHANGE opcode_len
-        op_info->opcode_len++; 
+        op_info->opcode_len++;
     return prefix_table;
 }
 
-int check_opcode_table(char *base, opcode_gathered_info *op_info)
+int check_opcode_table(unsigned char *base, opcode_gathered_info *op_info) // fill opcode table
 {
     opcode_info_struct *op_struct;
-    opcode_extension_struct *op_extension;
-    int offset = 0, table_array_size = 0, arg_count = 0, op_ex;
+    int offset = 0, 
+    table_array_size = 0;
     base += op_info->opcode_len;
     op_info->opcode = 0;
     op_info->opcode_table = OP1_TABLE;
     op_info->opcode_count = 0;
-    if (base[0] == '\x0f'){
+    if (base[0] == '\x0f')
+    {
         offset++;
-        if (base[1] == '\x38' || base[1] == '\x3a'){
+        if (base[1] == '\x38' || base[1] == '\x3a')
+        {
             offset++;
             op_info->opcode_table = OP3_TABLE;
-        } else op_info->opcode_table = OP2_TABLE;
+        } 
+        else 
+            op_info->opcode_table = OP2_TABLE;
     }
     op_struct = opcode_table[op_info->opcode_table];
     table_array_size = opcode_table_size[op_info->opcode_table] / sizeof(opcode_info_struct);
-    for (int i = 0;i < table_array_size;i++){
-        if (base[offset] == op_struct[i].opcode){
+    for (int i = 0;i < table_array_size;i++)
+    {
+        if ((char)base[offset] == op_struct[i].opcode)
+        {
             op_info->opcode = i;
             offset++;
             op_info->opcode_len += offset;
             op_info->opcode_count = offset;
-            op_info->arg_count = arg_count = opcode_arg_count(&op_struct[i]);
+            op_info->arg_count = opcode_arg_count(&op_struct[i]);
             return 1;
         }
     }
@@ -406,7 +412,8 @@ int check_opcode_table(char *base, opcode_gathered_info *op_info)
     return INV;
 }
 
-int parse_opcode(char *base, opcode_gathered_info *op_info){
+int parse_opcode(unsigned char *base, opcode_gathered_info *op_info) // fill opcode table
+{
     int prefix = check_prefix(base, op_info, 0);
     if (prefix == INV)
     {
@@ -425,25 +432,30 @@ int parse_opcode(char *base, opcode_gathered_info *op_info){
             return INV;
         }
     }
-    if (check_opcode_table(base, op_info) == INV) return 0;
+    if (check_opcode_table(base, op_info) == INV) 
+        return 0;
     return 1;
 }
-int check_opcode_extension(char *base, opcode_info_struct *opcode, opcode_info_struct *op_extension, opcode_gathered_info *op_info, int addr_size)
+int check_opcode_extension(unsigned char *base, opcode_info_struct *opcode, opcode_info_struct *op_extension, opcode_gathered_info *op_info, int addr_size)
 {
     opcode_extension_struct *op_ex, *op_ex_base;
-    char *op_p = &base[op_info->prefix_count]; // SKIP PREFIXES
-    int arg = -1, arg_ex_count = 0, arg_count = op_info->arg_count, escape_op = (opcode->args[0].arg_1_1 == XR);
-    if (escape_op) {} //GOTO memset();
-        else 
-        {
-            for (int i = 0;i<arg_count;i++) 
-                if (opcode->args[i].arg_1_1 == T) arg = i;
-            if (arg == -1) return 0;
-        }
+    unsigned char *op_p = (unsigned char *)&base[op_info->prefix_count]; // SKIP PREFIXES
+    int arg = -1,
+    arg_ex_count = 0, 
+    arg_count = op_info->arg_count, 
+    escape_op = (opcode->args[0].arg_1_1 == XR);
     memset(op_extension, '\x00', sizeof(opcode_info_struct));
-    fill_mod_rm(&op_p[op_info->opcode_count], op_info, addr_size);
-    if (escape_op) // PROCEDURE FOR ESCAPE OPCODES D8-DF
+    if (!escape_op)
     {
+        for (int i = 0;i<arg_count;i++) 
+            if (opcode->args[i].arg_1_1 == T) 
+                arg = i;
+        if (arg == -1) 
+            return 0;
+    }
+    else // PROCEDURE FOR ESCAPE OPCODES D8-DF
+    {
+        fill_mod_rm(&op_p[op_info->opcode_count], op_info, addr_size);
         if (op_p[op_info->opcode_count] > 0xbf)
         {
             op_ex = &escape_opcodes[*op_p - 0xd8].after_bf[(op_p[1] / 0x8) - 0x18][op_p[1] % 0x8];
@@ -482,7 +494,8 @@ int check_opcode_extension(char *base, opcode_info_struct *opcode, opcode_info_s
         op_info->arg_count = arg_ex_count;
         return 1;
     }
-    else op_ex = &opcode_extension_table[opcode->args[arg].arg_1_2][op_info->mod_rm.reg]; // OPCODE EXTENSION, GROUPS
+    fill_mod_rm(&op_p[op_info->opcode_count], op_info, addr_size);
+    op_ex = &opcode_extension_table[opcode->args[arg].arg_1_2][op_info->mod_rm.reg]; // OPCODE EXTENSION, GROUPS
     if (op_ex->opcode_name == 0)
     {
         op_info->opcode_len = 1;
@@ -514,7 +527,7 @@ int check_opcode_extension(char *base, opcode_info_struct *opcode, opcode_info_s
     op_info->arg_count = arg_ex_count;
     return 1;
 }
-int opcode_disasm_line(char *buf, int buf_size, char *base)
+int opcode_disasm_line(char *buf, int buf_size, unsigned char *base)
 {
     opcode_gathered_info op_info;
     opcode_info_struct *opcode, op_ex;
@@ -559,8 +572,8 @@ int opcode_disasm_line(char *buf, int buf_size, char *base)
         }
     }
     opcode = &opcode_table[op_info.opcode_table][op_info.opcode];
-    int op_size = check_prefix_op(base, op_info.prefix_count, '\x66');
-    int addr_size = check_prefix_op(base, op_info.prefix_count, '\x67');
+    int op_size = check_prefix_op(base, op_info.prefix_count, '\x66'); // flag for operand_size prefix
+    int addr_size = check_prefix_op(base, op_info.prefix_count, '\x67'); // flag for address_size prefix
     int op_ex_ret = check_opcode_extension(base, opcode, &op_ex, &op_info, addr_size);
     if (op_ex_ret)
     {
@@ -573,17 +586,21 @@ int opcode_disasm_line(char *buf, int buf_size, char *base)
     }
     const char *op_name = opcode->opcode_name;
     for (int i = 0, arg2;i < op_info.arg_count;i++)
-        if (opcode->args[i].arg_1_1 == K){
+        if (opcode->args[i].arg_1_1 == K)
+        {
             arg2 = opcode->args[i].arg_1_2;
-            if (arg2) {
-                if (!addr_size) break;
-            }
-                else if (!op_size) break;
+            if (arg2)
+                if (!addr_size) 
+                    break;
+                else 
+                    if (!op_size) 
+                        break;
             op_name += strlen(op_name) + 1;
             break;
         }
     strncat(buf, op_name, buf_size);
-    if (op_info.arg_count == 0) return op_info.opcode_len;
+    if (op_info.arg_count == 0) 
+        return op_info.opcode_len;
     for (int i = 0, arg1, arg2, mod_rm_offset = op_info.prefix_count + op_info.opcode_count;i < op_info.arg_count;i++)
     {
         arg1 = opcode->args[i].arg_1_1;
@@ -778,6 +795,12 @@ int opcode_disasm_line(char *buf, int buf_size, char *base)
                 strncat_args(buf, buf_size, arg2, reg_size, GENERAL_REG);
                 break;
             }
+            case ST:
+                strncat(buf, "ST(", buf_size);
+                if (arg2)
+                    itoa(((unsigned char)base[mod_rm_offset] % 0x8), &buf[strlen(buf)], 10);
+                else strncat(buf, "0", buf_size);
+                strncat(buf, ")", buf_size);
         }
         if (i < op_info.arg_count - 1) strncat(buf, ",", buf_size);
     }
@@ -787,7 +810,7 @@ int opcode_disasm_line(char *buf, int buf_size, char *base)
 
 int main(){
     opcode_gathered_info op_info;
-    char base[] = "\xF0\xf0\xf0\x65\x00\x0c\xe9\x00\x00\x00\x00\xe0\x49";
+    unsigned char base[] = "\xd8\xc9";
     char buf[64];
     char chars[490];
     int opcode_size = 0, printf_ret;
@@ -796,7 +819,7 @@ int main(){
         opcode = opcode_disasm_line(buf, 64, &base[opcode_size]);
         if (opcode == 0) opcode = 1;
         printf("|%p| ", &base[opcode_size]);
-        for (int d = 0;d < opcode;d++) printf_ret += printf("%02X ", (unsigned char )base[opcode_size+d]);
+        for (int d = 0;d < opcode;d++) printf_ret += printf("%02X ", (unsigned char)base[opcode_size+d]);
         while (printf_ret < 30) printf_ret += printf(" ");
         printf(" %s\n", buf);
         opcode_size += opcode;

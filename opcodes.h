@@ -36,12 +36,12 @@ typedef struct _opcode_extension_struct{
 } opcode_extension_struct;
 
 typedef struct _opcode_gathered_info{
-    unsigned char prefix_table:3;
-    unsigned char opcode_table:3;
-    unsigned char prefix_count:2; // NUMBER OF PREFIXES BEFORE OPCODE
-    unsigned int opcode_count;
-    unsigned int arg_count:2;
-    unsigned int opcode_len;
+    unsigned char prefix_table;
+    unsigned char opcode_table;
+    unsigned char prefix_count; // NUMBER OF PREFIXES BEFORE OPCODE
+    unsigned int opcode_count; // opcode length
+    unsigned int arg_count;
+    unsigned int opcode_len; // total length
     unsigned char prefix;
     unsigned char opcode;
     unsigned char has_mod_rm;
@@ -54,6 +54,7 @@ typedef struct _escape_opcode_struct{
     opcode_extension_struct before_bf[8];
     opcode_extension_struct after_bf[8][8];
 } escape_opcode_struct;
+
 
 typedef opcode_extension_struct opcode_extension_group[8];
 
@@ -970,29 +971,45 @@ escape_opcode_struct escape_opcodes[]={
            }
         },
         {
-            {
-                opcode_name[FADD],ST,0,ST,1
+            { // after_bf[0][0]
+                {
+                    opcode_name[FADD],ST,0,ST,1
+                }
+            },
+            { // after_bf[1][0]
+                {
+                    opcode_name[FMUL],ST,0,ST,1
+                }
             },
             {
-                opcode_name[FMUL],ST,0,ST,1
+                {
+                    opcode_name[FCOM],ST,0,ST,1
+                }
             },
             {
-                opcode_name[FCOM],ST,0,ST,1
+                {
+                    opcode_name[FCOMP],ST,0,ST,1
+                }
             },
             {
-                opcode_name[FCOMP],ST,0,ST,1
+                {
+                    opcode_name[FSUB],ST,0,ST,1
+                }
             },
             {
-                opcode_name[FSUB],ST,0,ST,1
+                {
+                    opcode_name[FSUBR],ST,0,ST,1
+                }
             },
             {
-                opcode_name[FSUBR],ST,0,ST,1
+                {
+                    opcode_name[FDIV],ST,0,ST,1
+                }
             },
             {
-                opcode_name[FDIV],ST,0,ST,1
-            },
-            {
-                opcode_name[FDIVR],ST,0,ST,1
+                {
+                    opcode_name[FDIVR],ST,0,ST,1
+                }
             }
         }
 
