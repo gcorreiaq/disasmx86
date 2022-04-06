@@ -648,6 +648,8 @@ int opcode_disasm_line(char *buf, int buf_size, unsigned char *base)
                     if (arg2 == a && op_size) arg2 = d;
                     else arg2 = q;
                 }
+            case XR:
+                if (arg1 == XR) arg1 = E;
             case E: 
             {
                 if (!op_info.has_mod_rm)
@@ -810,7 +812,7 @@ int opcode_disasm_line(char *buf, int buf_size, unsigned char *base)
 
 int main(){
     opcode_gathered_info op_info;
-    unsigned char base[] = "\xd8\xc9";
+    unsigned char base[] = "\xda\xe0";
     char buf[64];
     char chars[490];
     int opcode_size = 0, printf_ret;
